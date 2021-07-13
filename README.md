@@ -23,10 +23,12 @@
 
 ## デプロイ
 
-mainTopicをトリガーとして、名前はvpn-checkで、具体的な関数名はhello_pubsub の、python 3.9 の関数をデプロイ
+- mainTopicへのPublishをトリガーに起動する関数を作成。
+- 名前はvpn-checkで、具体的な関数名はexecute 
+- python 3.9 で動かす。regionはTokyo
 
 ```
-% gcloud functions deploy vpn-check --runtime python39 --trigger-topic mainTopic --region=asia-northeast1 --entry-point=hello_pubsub
+% gcloud functions deploy vpn-check --runtime python39 --trigger-topic mainTopic --region=asia-northeast1 --entry-point=execute
 ```
 
 ## TopicへのPublishで、バッチ起動

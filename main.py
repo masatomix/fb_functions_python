@@ -14,7 +14,7 @@ inifile = configparser.ConfigParser()
 inifile.read('./config.ini', 'UTF-8')
 
 
-def hello_pubsub(event, context):
+def execute(event, context):
     """Triggered from a message on a Cloud Pub/Sub topic.
     Args:
          event (dict): Event payload.
@@ -24,7 +24,7 @@ def hello_pubsub(event, context):
     print(pubsub_message)
 
     vpn_server = inifile.get('vpn', 'vpn_server')
-    vpn_port = inifile.get('vpn', 'vpn_port')
+    vpn_port = inifile.getint('vpn', 'vpn_port')
     checkserver(vpn_server, vpn_port)
 
 
@@ -46,12 +46,17 @@ def checkserver(ip, port):
         message = "OpenVPN({0}:{1}) Connection OK : {2:.4f} sec response time.".format(
             ip, port, time_end - time_start)
         print(message)
-        sendMail('疎通成功', message)
+
+        debugFlag = inifile.getboolean('debug', 'debug')
+        if debugFlag:
+            sendMail('疎通成功', message)
     except:
         message = "OpenVPN({0}:{1}) Connection failed.".format(ip, port)
         print(message)
         sendMail('疎通失敗', message)
-    sock.close()
+        raise Exception("疎通失敗: " + message)
+    finally:
+        sock.close()
     return message
 
 
@@ -78,7 +83,7 @@ def sendMail(subject, message):
     from_addr = inifile.get('mail', 'from_addr')
     password = inifile.get('mail', 'password')
     smtp_server = inifile.get('mail', 'smtp_server')
-    smtp_port = inifile.get('mail', 'smtp_port')
+    smtp_port = inifile.getint('mail', 'smtp_port')
     smtpobj = createSMTPObj(smtp_server, smtp_port, from_addr, password)
     msg = createMessageObj(subject, from_addr, to_addr, message)
 
@@ -94,7 +99,7 @@ def main():
         print(checkserver(argvs[1], argvs[2]))
     else:
         vpn_server = inifile.get('vpn', 'vpn_server')
-        vpn_port = inifile.get('vpn', 'vpn_port')
+        vpn_port = inifile.getint('vpn', 'vpn_port')
         print(checkserver(vpn_server, vpn_port))
 
 
