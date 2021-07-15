@@ -45,11 +45,11 @@ def _checkserver(ip, port):
     try:
         dta = sock.recv(100)
         time_end = time()
-        message = "OpenVPN({0}:{1}) Connection OK : {2:.4f} sec response time.".format(
+        message = "サーバへの接続に成功しました({0}:{1}) : {2:.4f} sec response time.".format(
             ip, port, time_end - time_start)
         print(message)
     except Exception as e:
-        message = "OpenVPN({0}:{1}) Connection failed.".format(ip, port)
+        message = "サーバへの接続に失敗しました({0}:{1}) ".format(ip, port)
         print(message)
         tmpE = e
     finally:
@@ -67,7 +67,7 @@ def checkserver(ip, port):
         if retE is None:
             if debugFlag:
                 sendMail('疎通成功', message)
-                return 0
+            return 0
         else:
             if index == try_count-1:
                 sendMail('疎通失敗', message)
