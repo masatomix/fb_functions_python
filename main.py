@@ -2,6 +2,7 @@
 import socket
 import sys
 from time import time
+import time as t
 import base64
 
 import smtplib
@@ -31,7 +32,7 @@ def execute(event, context):
 senddata = b"\x38\x01\x00\x00\x00\x00\x00\x00\x00"
 
 
-def checkserver(ip, port):
+def _checkserver(ip, port):
     print('Checking %s:%s' % (ip, port))  # <------
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(5)  # in seconds
@@ -40,24 +41,41 @@ def checkserver(ip, port):
     print("Sending request...")  # <------
     sock.send(senddata)
     message = ""
+    tmpE: Exception = None
     try:
         dta = sock.recv(100)
         time_end = time()
         message = "OpenVPN({0}:{1}) Connection OK : {2:.4f} sec response time.".format(
             ip, port, time_end - time_start)
         print(message)
-
-        debugFlag = inifile.getboolean('debug', 'debug')
-        if debugFlag:
-            sendMail('疎通成功', message)
-    except:
+    except Exception as e:
         message = "OpenVPN({0}:{1}) Connection failed.".format(ip, port)
         print(message)
-        sendMail('疎通失敗', message)
-        raise Exception("疎通失敗: " + message)
+        tmpE = e
     finally:
         sock.close()
-    return message
+    return tmpE, message
+
+
+def checkserver(ip, port):
+    debugFlag = inifile.getboolean('debug', 'debug')
+    interval = inifile.getfloat('retry', 'interval')
+    try_count = inifile.getint('retry', 'try_count')
+    for index in range(try_count):
+        print(f'{index}回目')
+        retE, message = _checkserver(ip, port)
+        if retE is None:
+            if debugFlag:
+                sendMail('疎通成功', message)
+                return 0
+        else:
+            if index == try_count-1:
+                sendMail('疎通失敗', message)
+                raise retE
+            else:
+                # print(f'{interval}秒まち')
+                t.sleep(interval)  # 3秒待って、for文を終える
+                # print(f'{interval}秒まち終わり')
 
 
 def createSMTPObj(smtp, port, user, password):
@@ -96,11 +114,11 @@ def main():
     argc = len(argvs)
 
     if(argc == 3):
-        print(checkserver(argvs[1], argvs[2]))
+        checkserver(argvs[1], argvs[2])
     else:
         vpn_server = inifile.get('vpn', 'vpn_server')
         vpn_port = inifile.getint('vpn', 'vpn_port')
-        print(checkserver(vpn_server, vpn_port))
+        checkserver(vpn_server, vpn_port)
 
 
 if __name__ == "__main__":
