@@ -1,1 +1,1 @@
-# Flask==1.0.2
+google-cloud-logging==2.5.0
