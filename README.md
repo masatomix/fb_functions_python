@@ -29,12 +29,17 @@
 
 ```
 % gcloud functions deploy vpn-check --runtime python39 --trigger-topic mainTopic --region=asia-northeast1 --entry-point=execute
+% gcloud functions deploy check-log --runtime python39 --trigger-topic checkLogTopic --region=asia-northeast1 --entry-point=execute1 
+(2つ目は、execute1というメソッドを、check-logという名前でデプロイ)
 ```
+
+参考: https://cloud.google.com/sdk/gcloud/reference/functions/deploy
 
 ## TopicへのPublishで、バッチ起動
 
 ```
 % gcloud pubsub topics publish mainTopic --message='testtesttest'
+% gcloud pubsub topics publish checkLogTopic --message='testtesttest'
 ```
 
 

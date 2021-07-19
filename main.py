@@ -11,6 +11,10 @@ from email.utils import formatdate
 
 import configparser
 
+from google.cloud import logging
+from google.cloud.logging import DESCENDING
+
+
 inifile = configparser.ConfigParser()
 inifile.read('./config.ini', 'UTF-8')
 
@@ -27,6 +31,51 @@ def execute(event, context):
     vpn_server = inifile.get('vpn', 'vpn_server')
     vpn_port = inifile.getint('vpn', 'vpn_port')
     checkserver(vpn_server, vpn_port)
+
+def execute1(event, context):
+    """Triggered from a message on a Cloud Pub/Sub topic.
+    Args:
+         event (dict): Event payload.
+         context (google.cloud.functions.Context): Metadata for the event.
+    """
+    pubsub_message = base64.b64decode(event['data']).decode('utf-8')
+    print(pubsub_message)
+    _list_entries()
+
+def _list_entries():
+    # Pythonのサンプルコード
+    # https://github.com/googleapis/python-logging/blob/master/samples/snippets/usage_guide.py
+    """Lists the most recent entries for a given logger."""
+    logger_name = "cloudfunctions.googleapis.com%2Fcloud-functions"
+    logging_client = logging.Client()
+    logger = logging_client.logger(logger_name)
+
+    print("Listing entries for logger {}:".format(logger.name))
+
+    # https://cloud.google.com/logging/docs/view/advanced-queries
+    # 検索条件指定方法
+    filter_str = 'severity=DEBUG AND resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1"'
+    page_size = 10
+    entries = []
+    for i, entry in enumerate(logger.list_entries(filter_=filter_str, page_size=page_size, order_by=DESCENDING)):
+        # timestamp = entry.timestamp.isoformat()
+        # print("* {}: {}".format(timestamp, entry.payload))
+        entries.append(entry)
+        if i == page_size-1:
+            break
+
+    # for entry in entries:
+    #     timestamp = entry.timestamp.isoformat()
+    #     print("* {}: {}".format(timestamp, entry.payload))
+    from dateutil import tz
+    JST = tz.gettz('Asia/Tokyo')
+    entriesStrArray = ["{0}: {1}".format(
+        entry.timestamp.astimezone(JST).isoformat(), entry.payload) for entry in entries]
+    entriesStrArray.insert(0,'定期バッチの実行状況です。直近の実行結果を表示しています')
+    message = '\n'.join(entriesStrArray)
+    print(message)
+    sendMail('定期バッチの実行状況(直近の実行結果)', message)
+
 
 
 senddata = b"\x38\x01\x00\x00\x00\x00\x00\x00\x00"
@@ -96,8 +145,7 @@ def createMessageObj(subject, from_address, to_address, message):
     return msg
 
 
-def sendMail(subject, message):
-    to_addr = inifile.get('mail', 'to_addr')
+def sendMail(subject, message, to_addr=inifile.get('mail', 'to_addr')):
     from_addr = inifile.get('mail', 'from_addr')
     password = inifile.get('mail', 'password')
     smtp_server = inifile.get('mail', 'smtp_server')
