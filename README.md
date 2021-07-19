@@ -33,6 +33,8 @@
 (2つ目は、execute1というメソッドを、check-logという名前でデプロイ)
 ```
 
+参考: https://cloud.google.com/sdk/gcloud/reference/functions/deploy
+
 ## TopicへのPublishで、バッチ起動
 
 ```

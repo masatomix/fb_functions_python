@@ -43,6 +43,8 @@ def execute1(event, context):
     _list_entries()
 
 def _list_entries():
+    # Pythonのサンプルコード
+    # https://github.com/googleapis/python-logging/blob/master/samples/snippets/usage_guide.py
     """Lists the most recent entries for a given logger."""
     logger_name = "cloudfunctions.googleapis.com%2Fcloud-functions"
     logging_client = logging.Client()
@@ -50,6 +52,8 @@ def _list_entries():
 
     print("Listing entries for logger {}:".format(logger.name))
 
+    # https://cloud.google.com/logging/docs/view/advanced-queries
+    # 検索条件指定方法
     filter_str = 'severity=DEBUG AND resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1"'
     page_size = 10
     entries = []
@@ -63,9 +67,10 @@ def _list_entries():
     # for entry in entries:
     #     timestamp = entry.timestamp.isoformat()
     #     print("* {}: {}".format(timestamp, entry.payload))
-
+    from dateutil import tz
+    JST = tz.gettz('Asia/Tokyo')
     entriesStrArray = ["{0}: {1}".format(
-        entry.timestamp.isoformat(), entry.payload) for entry in entries]
+        entry.timestamp.astimezone(JST).isoformat(), entry.payload) for entry in entries]
 
     message = '\n'.join(entriesStrArray)
     print(message)
@@ -140,8 +145,7 @@ def createMessageObj(subject, from_address, to_address, message):
     return msg
 
 
-def sendMail(subject, message):
-    to_addr = inifile.get('mail', 'to_addr')
+def sendMail(subject, message, to_addr=inifile.get('mail', 'to_addr')):
     from_addr = inifile.get('mail', 'from_addr')
     password = inifile.get('mail', 'password')
     smtp_server = inifile.get('mail', 'smtp_server')
