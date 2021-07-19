@@ -71,10 +71,10 @@ def _list_entries():
     JST = tz.gettz('Asia/Tokyo')
     entriesStrArray = ["{0}: {1}".format(
         entry.timestamp.astimezone(JST).isoformat(), entry.payload) for entry in entries]
-
+    entriesStrArray.insert(0,'定期バッチの実行状況です。直近の実行結果を表示しています')
     message = '\n'.join(entriesStrArray)
     print(message)
-    sendMail('定期バッチの実行状況', message)
+    sendMail('定期バッチの実行状況(直近の実行結果)', message)
 
 
 
