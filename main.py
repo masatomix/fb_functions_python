@@ -14,6 +14,10 @@ import configparser
 from google.cloud import logging
 from google.cloud.logging import DESCENDING
 
+import pandas as pd
+from pandas import DataFrame
+import datetime
+
 
 inifile = configparser.ConfigParser()
 inifile.read('./config.ini', 'UTF-8')
@@ -31,6 +35,7 @@ def execute(event, context):
     vpn_server = inifile.get('vpn', 'vpn_server')
     vpn_port = inifile.getint('vpn', 'vpn_port')
     checkserver(vpn_server, vpn_port)
+
 
 def execute1(event, context):
     """Triggered from a message on a Cloud Pub/Sub topic.
@@ -55,7 +60,7 @@ def _list_entries():
     # https://cloud.google.com/logging/docs/view/advanced-queries
     # 検索条件指定方法
     filter_str = 'severity=DEBUG AND resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1"'
-    page_size = 10
+    page_size = 400
     entries = []
     for i, entry in enumerate(logger.list_entries(filter_=filter_str, page_size=page_size, order_by=DESCENDING)):
         # timestamp = entry.timestamp.isoformat()
@@ -64,18 +69,40 @@ def _list_entries():
         if i == page_size-1:
             break
 
+    # pd.set_option('display.max_columns', 50)
+    df = DataFrame(entries)
+    df['timestamp'] = pd.to_datetime(
+        df['timestamp'], utc=True).dt.tz_convert('Asia/Tokyo')
+    df.index = df['timestamp']
+    df['count'] = 1
+
+    df_ok = df[df['payload'].str.contains('ok')]
+    df_ok_groupby = df_ok.groupby(
+        pd.Grouper(key='timestamp', freq='1h'))['count'].count()
+    print(df_ok_groupby.to_csv(sep='\t'))
+
+    df_crashed = df[df['payload'].str.contains('crashed')]
+    df_crashed_groupby = df_crashed.groupby(
+        pd.Grouper(key='timestamp', freq='1h'))['count'].count()
+    print(df_crashed_groupby.to_csv(sep='\t'))
+
     # for entry in entries:
     #     timestamp = entry.timestamp.isoformat()
     #     print("* {}: {}".format(timestamp, entry.payload))
-    from dateutil import tz
-    JST = tz.gettz('Asia/Tokyo')
-    entriesStrArray = ["{0}: {1}".format(
-        entry.timestamp.astimezone(JST).isoformat(), entry.payload) for entry in entries]
-    entriesStrArray.insert(0,'定期バッチの実行状況です。直近の実行結果を表示しています')
-    message = '\n'.join(entriesStrArray)
+    # from dateutil import tz
+    # JST = tz.gettz('Asia/Tokyo')
+    # entriesStrArray = ["{0}: {1}".format(
+    #     entry.timestamp.astimezone(JST).isoformat(), entry.payload) for entry in entries]
+    # entriesStrArray.insert(0, '定期バッチの実行状況です。直近のOK件数を表示しています')
+    # message = '\n'.join(entriesStrArray)
+    messages = ['定期バッチの実行状況です。直近のOK件数:',
+                df_ok_groupby.to_csv(sep='\t'),
+                '定期バッチの実行状況です。直近のNG件数:',
+                df_crashed_groupby.to_csv(sep='\t'),
+                ]
+    message = '\n'.join(messages)
     print(message)
     sendMail('定期バッチの実行状況(直近の実行結果)', message)
-
 
 
 senddata = b"\x38\x01\x00\x00\x00\x00\x00\x00\x00"
