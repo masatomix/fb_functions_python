@@ -47,6 +47,38 @@ def execute1(event, context):
     print(pubsub_message)
     _list_entries()
 
+
+def get_count_message():
+    # Pythonのサンプルコード
+    # https://github.com/googleapis/python-logging/blob/master/samples/snippets/usage_guide.py
+    """Lists the most recent entries for a given logger."""
+    logger_name = "cloudfunctions.googleapis.com%2Fcloud-functions"
+    logging_client = logging.Client()
+    logger = logging_client.logger(logger_name)
+
+    # https://cloud.google.com/logging/docs/view/advanced-queries
+    # 検索条件指定方法
+    filter_str = 'resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1" AND textPayload:"回目"'
+    page_size = 200
+    entries = []
+    for i, entry in enumerate(logger.list_entries(filter_=filter_str, page_size=page_size, order_by=DESCENDING)):
+        # timestamp = entry.timestamp.isoformat()
+        # print("* {}: {}".format(timestamp, entry.payload))
+        entries.append(entry)
+        if i == page_size-1:
+            break
+
+    # pd.set_option('display.max_columns', 50)
+    df = DataFrame(entries)
+    # df.to_csv('log_kaime.csv')
+
+    df['timestamp'] = pd.to_datetime(
+        df['timestamp'], utc=True).dt.tz_convert('Asia/Tokyo')
+    df['count'] = 1
+    df_groupby = df.groupby('payload')['count'].count()
+    return df_groupby.to_csv(sep='\t')
+
+
 def _list_entries():
     # Pythonのサンプルコード
     # https://github.com/googleapis/python-logging/blob/master/samples/snippets/usage_guide.py
@@ -59,8 +91,8 @@ def _list_entries():
 
     # https://cloud.google.com/logging/docs/view/advanced-queries
     # 検索条件指定方法
-    filter_str = 'severity=DEBUG AND resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1"'
-    page_size = 400
+    filter_str = 'severity=DEBUG AND resource.type="cloud_function" AND resource.labels.function_name="vpn-check" AND resource.labels.region = "asia-northeast1"  AND textPayload:"Function execution took"'
+    page_size = 200
     entries = []
     for i, entry in enumerate(logger.list_entries(filter_=filter_str, page_size=page_size, order_by=DESCENDING)):
         # timestamp = entry.timestamp.isoformat()
@@ -99,6 +131,8 @@ def _list_entries():
                 df_ok_groupby.to_csv(sep='\t'),
                 '定期バッチの実行状況です。直近のNG件数:',
                 df_crashed_groupby.to_csv(sep='\t'),
+                '\n直近200回のうち、リトライ回数(0回目が基本で、それ以外は原則はないはず):',
+                get_count_message(),
                 ]
     message = '\n'.join(messages)
     print(message)
