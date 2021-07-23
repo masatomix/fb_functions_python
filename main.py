@@ -16,7 +16,6 @@ from google.cloud.logging import DESCENDING
 
 import pandas as pd
 from pandas import DataFrame
-import datetime
 
 
 inifile = configparser.ConfigParser()
